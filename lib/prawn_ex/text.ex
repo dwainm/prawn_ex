@@ -146,38 +146,67 @@ defmodule PrawnEx.Text do
   Splits on spaces (words); if a word exceeds max_width, breaks by character.
   Preserves existing newlines as paragraph breaks.
   """
-  @spec wrap_to_lines(String.t(), number(), number()) :: [String.t()]
-  def wrap_to_lines(text, max_width, font_size) when max_width > 0 and font_size > 0 do
+  @spec wrap_to_lines(String.t(), number(), number(), String.t()) :: [String.t()]
+  def wrap_to_lines(text, max_width, font_size, font_name \\ "Helvetica")
+
+  def wrap_to_lines(text, max_width, font_size, font_name)
+      when max_width > 0 and font_size > 0 do
+    measure = fn s, size -> width(s, size, font_name) end
+
     text
     |> String.split("\n")
-    |> Enum.flat_map(&wrap_paragraph(&1, max_width, font_size))
+    |> Enum.flat_map(&wrap_paragraph(&1, max_width, font_size, measure))
   end
 
-  def wrap_to_lines(_, _max_width, _font_size), do: []
+  def wrap_to_lines(_, _max_width, _font_size, _font_name), do: []
 
-  defp wrap_paragraph("", _max_width, _font_size), do: []
+  @doc """
+  Width of `text` in points when set in `font_name` at `font_size`.
 
-  defp wrap_paragraph(paragraph, max_width, font_size) do
+  Built-in fonts with AFM metrics (the Helvetica and Times families) are
+  measured exactly, glyph by glyph, after the same WinAnsi transliteration
+  the writer applies, so bold and italic faces get their own widths. Other
+  fonts fall back to `estimated_width/2`.
+  """
+  @spec width(String.t(), number(), String.t()) :: number()
+  def width(text, font_size, font_name) when is_binary(text) do
+    case PrawnEx.Font.AFM.widths(font_name) do
+      nil ->
+        estimated_width(text, font_size)
+
+      widths ->
+        units =
+          for <<code <- PrawnEx.PDF.Encoder.winansi(text)>>, reduce: 0 do
+            acc -> acc + if(code >= 32, do: elem(widths, code - 32), else: 0)
+          end
+
+        units * font_size / 1000
+    end
+  end
+
+  defp wrap_paragraph("", _max_width, _font_size, _measure), do: []
+
+  defp wrap_paragraph(paragraph, max_width, font_size, measure) do
     words = String.split(paragraph, " ", trim: false)
 
     {lines, rest} =
       Enum.reduce(words, {[], ""}, fn word, {lines, current} ->
         candidate = if current == "", do: word, else: current <> " " <> word
-        candidate_width = estimated_width(candidate, font_size)
+        candidate_width = measure.(candidate, font_size)
 
         if candidate_width <= max_width do
           {lines, candidate}
         else
           if current == "" do
-            {char_lines, _} = wrap_word_by_char(word, max_width, font_size)
+            {char_lines, _} = wrap_word_by_char(word, max_width, font_size, measure)
             {lines ++ char_lines, ""}
           else
             new_lines = lines ++ [current]
 
-            if estimated_width(word, font_size) <= max_width do
+            if measure.(word, font_size) <= max_width do
               {new_lines, word}
             else
-              {char_lines, _} = wrap_word_by_char(word, max_width, font_size)
+              {char_lines, _} = wrap_word_by_char(word, max_width, font_size, measure)
               {new_lines ++ char_lines, ""}
             end
           end
@@ -187,14 +216,14 @@ defmodule PrawnEx.Text do
     if rest == "", do: lines, else: lines ++ [rest]
   end
 
-  defp wrap_word_by_char(word, max_width, font_size) do
+  defp wrap_word_by_char(word, max_width, font_size, measure) do
     chars = String.graphemes(word)
 
     {lines, buf} =
       Enum.reduce(chars, {[], ""}, fn c, {acc, buf} ->
         trial = buf <> c
 
-        if estimated_width(trial, font_size) <= max_width do
+        if measure.(trial, font_size) <= max_width do
           {acc, trial}
         else
           if buf == "" do

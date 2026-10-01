@@ -107,7 +107,7 @@ defmodule PrawnEx do
     line_height = Keyword.get(opts, :line_height, font_size * 1.2)
 
     {x, y} = at
-    lines = PrawnEx.Text.wrap_to_lines(text, width, font_size)
+    lines = PrawnEx.Text.wrap_to_lines(text, width, font_size, font_name)
 
     if lines == [] do
       doc
@@ -281,6 +281,16 @@ defmodule PrawnEx do
   """
   @spec restore_state(Document.t()) :: Document.t()
   def restore_state(doc), do: Document.append_op(doc, :restore_state)
+
+  @doc """
+  Sets extra space, in points, added after every character of text drawn
+  afterwards (`Tc`), like Prawn's `character_spacing:`. Reset with `0`.
+  Text measured with `PrawnEx.Text.width/3` does not include it; add
+  `spacing * String.length(text)` when you need the spaced width.
+  """
+  @spec set_character_spacing(Document.t(), number()) :: Document.t()
+  def set_character_spacing(doc, spacing) when is_number(spacing),
+    do: Document.append_op(doc, {:set_character_spacing, spacing})
 
   @doc """
   Concatenates the matrix `[a b c d e f]` onto the current transformation

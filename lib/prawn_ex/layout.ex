@@ -164,7 +164,7 @@ defmodule PrawnEx.Layout do
     width = Keyword.get(opts, :width, l.content_width)
     gap_after = Keyword.get(opts, :gap_after, 10)
 
-    lines = Text.wrap_to_lines(text, width, font_size)
+    lines = Text.wrap_to_lines(text, width, font_size, font_name)
 
     if lines == [] do
       l

@@ -74,6 +74,11 @@ defmodule PrawnEx.PDF.ContentStream do
     {acc <> Encoder.number(n) <> " j\n", maps}
   end
 
+  defp emit_op({:set_character_spacing, spacing}, {acc, maps}) do
+    # Tc is text state, so it persists across BT/ET until changed or Q.
+    {acc <> Encoder.number(spacing) <> " Tc\n", maps}
+  end
+
   defp emit_op(:close_path, {acc, maps}) do
     {acc <> "h\n", maps}
   end
