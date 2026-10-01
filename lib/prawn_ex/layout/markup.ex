@@ -138,8 +138,6 @@ defmodule PrawnEx.Layout.Markup do
     end
   end
 
-  defp flush_buf(acc, :idle, _), do: acc
-
   defp flush_buf(acc, :text_buf, []) do
     acc
   end

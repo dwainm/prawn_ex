@@ -56,7 +56,7 @@ defmodule PrawnEx.Image.PNG do
     if byte_size(rest) < total do
       {:error, :truncated_png}
     else
-      <<data::binary-size(len), _crc::32, tail::binary>> = rest
+      <<data::binary-size(^len), _crc::32, tail::binary>> = rest
 
       case typ do
         "IHDR" ->
@@ -136,7 +136,7 @@ defmodule PrawnEx.Image.PNG do
   defp decode_scanlines(data, w, h, bpp, color_type, row_len) do
     Enum.reduce(0..(h - 1), {<<>>, nil}, fn row_idx, {rgb_acc, prior_recon} ->
       offset = row_idx * (1 + row_len)
-      <<ftype, scan::binary-size(row_len), _::binary>> = binary_part(data, offset, 1 + row_len)
+      <<ftype, scan::binary-size(^row_len), _::binary>> = binary_part(data, offset, 1 + row_len)
       recon = recon_row(ftype, scan, prior_recon, row_len, bpp)
       rgb_row = row_to_rgb(recon, w, bpp, color_type)
       {rgb_acc <> rgb_row, recon}
